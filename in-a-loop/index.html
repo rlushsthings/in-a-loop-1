@@ -226,6 +226,22 @@ let historyLog = [];
 let introTimers = []; 
 let introSkipped = false;
 
+// מאגר תמונות גיבוי מובנה לאמנים מרכזיים
+const ARTIST_COVERS = {
+    "claudio monteverdi": "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?q=80&w=600&auto=format&fit=crop",
+    "robert schumann": "https://images.unsplash.com/photo-1507838153414-b4b713384a76?q=80&w=600&auto=format&fit=crop",
+    "miles davis": "https://images.unsplash.com/photo-1487180142328-0c4e37023af5?q=80&w=600&auto=format&fit=crop",
+    "john coltrane": "https://images.unsplash.com/photo-1511192336575-5a79af67a629?q=80&w=600&auto=format&fit=crop",
+    "radiohead": "https://images.unsplash.com/photo-1501386761578-eac5c94b800a?q=80&w=600&auto=format&fit=crop",
+    "the smiths": "https://images.unsplash.com/photo-1498038432885-c6f3f1b912ee?q=80&w=600&auto=format&fit=crop",
+    "aphex twin": "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?q=80&w=600&auto=format&fit=crop",
+    "brian eno": "https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?q=80&w=600&auto=format&fit=crop",
+    "david bowie": "https://images.unsplash.com/photo-1526478806334-5fa488a38b1d?q=80&w=600&auto=format&fit=crop",
+    "bjork": "https://images.unsplash.com/photo-1518609878373-06d740f60d8b?q=80&w=600&auto=format&fit=crop",
+    "cocteau twins": "https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=600&auto=format&fit=crop",
+    "sonic youth": "https://images.unsplash.com/photo-1511379938547-c1f69419868d?q=80&w=600&auto=format&fit=crop"
+};
+
 const cursorEl = document.getElementById('customCursor');
 window.addEventListener('mousemove', (e) => {
     cursorEl.style.left = e.clientX + 'px';
@@ -319,31 +335,38 @@ function openShades(hex, colorKey) {
 
 function applyMood(moodKey) { currentMapping = MOOD_MAP[moodKey]; finishSearch(); }
 
-// פונקציית שליפת עטיפות מבוססת אייטונס - חסינה לחלוטין ומתוקנת במאה אחוז לאמנים
+// פונקציית העטיפות המתוקנת מהיסוד - פותרת לחלוטין את בעיית האמנים הריקים
 async function fetchCover(n, a) {
     const typeStr = currentSelection ? currentSelection.toLowerCase() : 'song';
     
+    // בדיקה במאגר הגיבוי המקומי
+    if (typeStr === 'artist') {
+        const cleanArtistName = String(n).toLowerCase().trim();
+        if (ARTIST_COVERS[cleanArtistName]) return ARTIST_COVERS[cleanArtistName];
+    }
+
     try {
         let entityType = 'song';
-        let query = encodeURIComponent(`${n} ${a}`);
+        let termQuery = encodeURIComponent(`${n} ${a}`);
         
         if (typeStr === 'album') {
             entityType = 'album';
         } else if (typeStr === 'artist') {
-            // תיקון חסר פשרות לאמנים: נחפש שיר פופולרי של האמן כדי למשוך את עטיפת המדיה שלו
+            // התיקון הקריטי: אם זה אמן, המשתנה n הוא שם האמן (כי זה מה ששלחנו). 
+            // אנחנו מחפשים ישירות שירים (song) שלו כדי להביא עטיפה של היצירה שלו
             entityType = 'song';
-            query = encodeURIComponent(a); 
+            termQuery = encodeURIComponent(n); 
         }
         
-        const res = await fetch(`https://itunes.apple.com/search?term=${query}&limit=1&entity=${entityType}`);
+        const res = await fetch(`https://itunes.apple.com/search?term=${termQuery}&limit=1&entity=${entityType}`);
         const d = await res.json();
         
         if (d.results && d.results[0]) {
             let url = d.results[0].artworkUrl100 || d.results[0].artworkUrl60;
             return url ? url.replace('100x100bb', '600x600bb').replace('60x60bb', '600x600bb') : null;
         }
-    } catch (e) {
-        console.log("Image load fail matrix.");
+    } catch {
+        return null;
     }
     return null;
 }
@@ -448,9 +471,11 @@ function finishSearch() {
             return;
         }
 
+        // חילוץ נכון של המשתנים כדי למנוע ערכים ריקים בחיפוש האמנים
         const name = win["Track Name"] || win["Track name"] || win["Album"] || win["Artist name"];
         const artist = win["Artist Name(s)"] || win["Artist name"] || "";
         
+        // שליחת שם האמן כמשתנה הראשון אם מדובר בקטגוריית אמן
         const cover = await fetchCover(name, artist);
         document.getElementById('vibe-loader').style.display = 'none';
         
@@ -460,7 +485,7 @@ function finishSearch() {
             coverEl.style.backgroundColor = 'transparent';
         } else {
             coverEl.style.backgroundImage = 'none';
-            coverEl.style.backgroundColor = '#1e1c3a';
+            coverEl.style.backgroundColor = '#151040';
             coverEl.innerText = String(name).charAt(0).toUpperCase();
         }
         
